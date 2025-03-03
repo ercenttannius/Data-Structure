@@ -1,113 +1,156 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include <string.h>
+#include <ctype.h>
 
 #define MAX 100
 
+// Struktur Stack untuk karakter
 typedef struct {
-    char items[MAX];
+    char data[MAX];
     int top;
-} Stack;
+} CharStack;
 
-void initStack(Stack *s) {
+// Struktur Stack untuk string
+typedef struct {
+    char data[MAX][MAX];
+    int top;
+} StringStack;
+
+// Inisialisasi stack karakter
+void initCharStack(CharStack *s) {
     s->top = -1;
 }
 
-int isEmpty(Stack *s) {
+// Inisialisasi stack string
+void initStringStack(StringStack *s) {
+    s->top = -1;
+}
+
+// Cek apakah stack kosong
+int isCharStackEmpty(CharStack *s) {
     return s->top == -1;
 }
 
-int isFull(Stack *s) {
-    return s->top == MAX - 1;
+// Push elemen ke stack karakter
+void pushChar(CharStack *s, char value) {
+    s->data[++(s->top)] = value;
 }
 
-void push(Stack *s, char item) {
-    if (isFull(s)) {
-        printf("Stack Overflow\n");
-        return;
+// Pop elemen dari stack karakter
+char popChar(CharStack *s) {
+    if (isCharStackEmpty(s)) return '\0';
+    return s->data[(s->top)--];
+}
+
+// Melihat elemen teratas stack karakter
+char peekChar(CharStack *s) {
+    if (isCharStackEmpty(s)) return '\0';
+    return s->data[s->top];
+}
+
+// Push string ke stack string
+void pushString(StringStack *s, char *value) {
+    strcpy(s->data[++(s->top)], value);
+}
+
+// Pop string dari stack string
+void popString(StringStack *s, char *res) {
+    if (s->top >= 0) {
+        strcpy(res, s->data[(s->top)--]);
     }
-    s->items[++s->top] = item;
 }
 
-char pop(Stack *s) {
-    if (isEmpty(s)) {
-        printf("Stack Underflow\n");
-        return -1;
-    }
-    return s->items[s->top--];
-}
-
-char peek(Stack *s) {
-    return s->items[s->top];
-}
-
+// Prioritas operator
 int precedence(char op) {
-    switch (op) {
-        case '+': case '-': return 1;
-        case '*': case '/': return 2;
-        case '^': return 3;
-        default: return 0;
-    }
-}
-
-void infixToPostfix(char *exp) {
-    Stack stack;
-    initStack(&stack);
-    char output[MAX];
-    int j = 0;
-    
-    for (int i = 0; exp[i] != '\0'; i++) {
-        if (isalnum(exp[i])) {
-            output[j++] = exp[i];
-        } else if (exp[i] == '(') {
-            push(&stack, exp[i]);
-        } else if (exp[i] == ')') {
-            while (!isEmpty(&stack) && peek(&stack) != '(') {
-                output[j++] = pop(&stack);
-            }
-            pop(&stack);
-        } else {
-            while (!isEmpty(&stack) && precedence(peek(&stack)) >= precedence(exp[i])) {
-                output[j++] = pop(&stack);
-            }
-            push(&stack, exp[i]);
-        }
-    }
-    
-    while (!isEmpty(&stack)) {
-        output[j++] = pop(&stack);
-    }
-    output[j] = '\0';
-    printf("Postfix: %s\n", output);
-}
-
-void postfixToInfix(char *exp) {
-    Stack stack;
-    initStack(&stack);
-    
-    for (int i = 0; exp[i] != '\0'; i++) {
-        if (isalnum(exp[i])) {
-            char str[2] = {exp[i], '\0'};
-            push(&stack, exp[i]);
-        } else {
-            char op2 = pop(&stack);
-            char op1 = pop(&stack);
-            printf("(%c%c%c)\n", op1, exp[i], op2);
-            push(&stack, 'X'); 
-        }
-    }
-}
-
-int main() {
-    char infix[] = "a+b*(c^d-e)^(f+g*h)-i";
-    printf("Infix: %s\n", infix);
-    infixToPostfix(infix);
-    
-    char postfix[] = "abcd^e-fgh*+^*+i-";
-    printf("Postfix: %s\n", postfix);
-    postfixToInfix(postfix);
-    
+    if (op == '^') return 3;
+    if (op == '*' || op == '/') return 2;
+    if (op == '+' || op == '-') return 1;
     return 0;
 }
 
+// Konversi Infix ke Postfix
+void infixToPostfix(char *infix, char *postfix) {
+    CharStack s;
+    initCharStack(&s);
+    int i, j = 0;
+    
+    for (i = 0; infix[i] != '\0'; i++) {
+        char ch = infix[i];
+
+        if (isalnum(ch)) {
+            postfix[j++] = ch;
+        } else if (ch == '(') {
+            pushChar(&s, ch);
+        } else if (ch == ')') {
+            while (!isCharStackEmpty(&s) && peekChar(&s) != '(') {
+                postfix[j++] = popChar(&s);
+            }
+            popChar(&s);
+        } else {
+            while (!isCharStackEmpty(&s) && precedence(peekChar(&s)) >= precedence(ch)) {
+                postfix[j++] = popChar(&s);
+            }
+            pushChar(&s, ch);
+        }
+    }
+
+    while (!isCharStackEmpty(&s)) {
+        postfix[j++] = popChar(&s);
+    }
+    postfix[j] = '\0';
+}
+
+// Konversi Postfix ke Infix
+void postfixToInfix(char *postfix, char *infix) {
+    StringStack s;
+    initStringStack(&s);
+    char temp[MAX], op1[MAX], op2[MAX];
+    
+    for (int i = 0; postfix[i] != '\0'; i++) {
+        char ch[2] = {postfix[i], '\0'};
+
+        if (isalnum(postfix[i])) {
+            pushString(&s, ch);
+        } else {
+            popString(&s, op2);
+            popString(&s, op1);
+            sprintf(temp, "(%s%c%s)", op1, postfix[i], op2);
+            pushString(&s, temp);
+        }
+    }
+
+    popString(&s, infix);
+}
+
+int main() {
+    char infix[MAX], postfix[MAX], convertedInfix[MAX];
+    int choice;
+
+    while (1) {
+        printf("MENU:\n");
+        printf("1. Konversi Infix ke Postfix\n");
+        printf("2. Konversi Postfix ke Infix\n");
+        printf("3. Keluar\n");
+        printf("Pilih (1/2/3): ");
+        scanf("%d", &choice);
+        getchar();
+
+        if (choice == 1) {
+            printf("Masukkan ekspresi Infix: ");
+            scanf("%s", infix);
+            infixToPostfix(infix, postfix);
+            printf("Postfix: %s\n", postfix);
+        } else if (choice == 2) {
+            printf("Masukkan ekspresi Postfix: ");
+            scanf("%s", postfix);
+            postfixToInfix(postfix, convertedInfix);
+            printf("Infix: %s\n", convertedInfix);
+        } else if (choice == 3) {
+            printf("Terima kasih!\n");
+            return 0;
+        } else {
+            printf("Pilihan tidak valid, coba lagi!\n");
+        }
+    }
+}
